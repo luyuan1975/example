@@ -1,0 +1,334 @@
+archlinux 安装日志
+1.下载安装 iso 文件，安装到 U 盘。
+
+2.安装介质启动到 live 环境。grub 菜单 选 第一个
+
+3.验证引导模式
+# ls /sys/firmware/efi/efivars
+如果结果显示了目录且没有报告错误，则系统是以 UEFI 模式引导的。
+
+判断无线网卡是否被锁
+# rfkill list
+--------------
+0: phy0: Wireless LAN
+    Soft blocked: yes
+    Hard blocked: yes
+如果出现以上内容，可以调节网卡开关打开它。如果没有开关，那就使用以下命令：
+# rfkill unblock wifi
+
+连接网络
+$ iwctl   //会进入联网模式
+[iwd]# help    //可以查看帮助
+[iwd]# device list    //列出你的无线设备名称，一般以wlan0命名
+[iwd]# station <device> scan    //扫描当前环境下的网络
+[iwd]# station <device> get-networks    //会显示你扫描到的所有网络
+[iwd]# station <device> connect <network name>
+password:输入密码
+[iwd]# exit    //退出当前模式，回到安装模式
+
+测试网络是否连通：
+# ping baidu.com
+
+更新为国内镜像源
+reflector --country China --age 72 --sort rate --protocol https --save /etc/pacman.d/mirrorlist
+
+更新系统时间
+# timedatectl set-ntp true
+之后可以使用
+# timedatectl status
+检查服务状态
+
+创建分区
+。。。。。。
+EFI 系统分区
+mkfs.fat  -F  32  /dev/sda1
+mkfs.fat  -F  32  /dev/nvme0n1p1
+
+root分区格式化
+mkfs.ext4   /dev/sda2
+mkfs.ext4   /dev/nvme0n1p2
+
+home分区格式化
+mkfs.ext4   /dev/sda3
+mkfs.ext4   /dev/nvme0n1p3
+
+创建swap分区
+mkswap  /dev/sda4
+mkswap  /dev/nvme0n1p4
+
+挂载分区
+mount /dev/sda2 /mnt
+mount  /dev/nvme0n1p2  /mnt
+
+cd /mnt
+
+mkdir -p boot/efi
+mount /dev/sda1 /mnt/boot/efi
+mount /dev/nvme0np1 /mnt/boot/efi
+
+mkdir home
+mount  /dev/sda3  /mnt/home
+mount  /dev/nvme0np3  /mnt/home
+
+swapon /dev/sda4
+
+# lsblk -f
+## 查看分区情况
+
+安装必需的软件包
+# pacstrap -i /mnt base linux linux-firmware nano
+
+# genfstab -U /mnt >> /mnt/etc/fstab
+# arch-chroot /mnt
+
+# ln  -sf  /usr/share/zoneinfo/Asia/Shanghai  /etc/localtime
+
+ generate /etc/adjtime
+# hwclock --systohc
+
+Edit /etc/locale.gen and uncomment en_US.UTF-8 UTF-8 and other needed locales. Generate the locales by running:
+# locale-gen
+
+/etc/locale.conf
+LANG=en_US.UTF-8
+
+/etc/vconsole.conf
+KEYMAP=us
+
+# passwd
+
+# pacman -S base-devel iwd git
+# pacman -S grub efibootmgr
+
+# 自 0.19 版本起，iwd 可使用内置的 DHCP 客户端或静态配置来分配（多个）IP 地址并设置路由。
+# 它是 独立 DHCP 客户端 不错的替代品。
+nano /etc/iwd/main.conf
+[General]
+EnableNetworkConfiguration=true
+
+{
+
+# pacman  -S  plasma-nm networkmanager
+
+pacman -S network-manager-applet wpa_supplicant
+pacman -S dialog wireless_tools os-prober mtools dosfstools ntfs-3g  reflector
+}
+
+nano /etc/resolv.conf
+nameserver 114.114.114.114
+
+如果你是intel的cpu，需要安装intel的微码文件
+# pacman -S intel-ucode
+
+如果是amd cpu
+# pacman -S amd-ucode
+
+# grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
+
+# grub-mkconfig -o /boot/grub/grub.cfg
+
+# exit
+# umount  /mnt/home
+# umount  /mnt/boot/efi
+# umount /mnt
+
+# reboot
+
+# useradd  -m   ly75
+# passwd  ly75
+# usermod  -aG  wheel,users,storage,power,lp,adm,optical  ly75
+# EDITOR=nano  visudo
+%wheel  ALL=(ALL)  ALL
+
+# pacman -S man-db man-pages
+
+不安装 xorg，只安装 xorg-server
+# pacman -S  xf86-video-intel  xorg-server
+
+不安装 plasma，只安装 plasma-desktop
+# pacman  -S  plasma-desktop  plasma-wayland-session
+
+sddm：登录管理器
+konsole：kde下的终端
+kate：文本编辑器
+ark：解压与压缩
+okular：PDF查看器
+spectacle：截图工具
+kinfocenter :
+yay  : AUR管理工具
+
+# pacman  -S   ark  konsole  kate  sddm-kcm  okular  spectacle
+# pacman  -S  discover  packagekit-qt5
+# pacman  -S  dolphin
+# pacman -S  ksysguard  plasma-pa
+# pacman  -S  kinfocenter
+# pacman  -S  kdeconnect
+
+# pacman -S chromium
+# pacman  -S nginx
+
+
+{ 如果 下载 kde 应用小程序 出现错误，或 更换 全局主题 出现 "Open Collaboration Services 的 API 出现了未知错误" }
+{ 请将 区域设置 中 的 语言 和 格式 更换为 英语 。}
+
+{ 对于 1920* 1080 显示器，系统设置 > 应用程序外观 > 字体 将字体 DPI 强制设置为 96，2k 以上设为 108 。}
+
+{{
+添加ArchLinuxCN 存储库
+该仓库是由archlinux中文社区驱动的一个非官方的软件仓库。
+我们使用的很多软件都需要使用这个库去下载，比如 typora。
+
+# vim /etc/pacman.conf
+--------------------------------------
+# 在最后添加
+[archlinuxcn]
+Server = https://mirrors.ustc.edu.cn/archlinuxcn/$arch
+# 这是中科大的源，也可以选择清华、阿里等
+
+然后更新GPG密钥
+# pacman -S archlinuxcn-keyring
+
+注 ： 如果以上更新密钥步骤出现错误，执行以下步骤
+# rm -rf /etc/pacman.c/gnupg
+# pacman-key --init
+# pacman-key --populate archlinux archlinuxcn
+# pacman -Syy
+
+安装 archlinuxcn 源中的 yay , libpamac-aur , pamac-aur  libinput-gestures
+# pacman  -S  yay
+}}
+
+$ yay  -S  systemd-kcm
+
+powerdevil-light 不需要 NetworkManager 和 Bluez 作为依赖。
+$ yay  -S  powerdevil-light
+
+$ yay  -S  libinput-gestures
+
+$ sudo pacman -S  xdotool
+$ sudo gpasswd -a $USER input
+$ cp  /etc/libinput-gestures.conf  ~/.config/libinput-gestures.conf
+,,,,,,
+gesture pinch in 2 xdotool key ctrl+minus
+gesture pinch out 2 xdotool key ctrl+plus
+gesture swipe up 3 xdotool key super+Page_Up
+gesture swipe down 3 xdotool key super+Page_Down
+gesture swipe up 4 xdotool key ctrl+F9
+gesture swipe down 4 xdotool key alt+F4
+
+
+To set up the application as a systemd user service:
+$ libinput-gestures-setup service
+
+Or instead, to set up the application using your DE:
+$ libinput-gestures-setup desktop
+
+Enable the app to start automatically in the background when you log in with:
+$ libinput-gestures-setup autostart
+
+显卡相关
+pacman -S vulkan-intel mesa
+
+声卡配置
+# pacman -S alsa-utils pulseaudio  pulseaudio-alsa
+# pacman  -S sof-firmware  alsa-ucm-conf    # 新笔记本使用
+{
+$ alsamixer
+$ alsactl store
+alsa-restore.service 在引导时读取 /var/lib/alsa/asound.state ，并在关机时写入更新后的值，
+前提是已经运行 alsactl store 生成了配置文件；
+}
+
+蓝牙
+# pacman  -S  bluez  pulseaudio-bluetooth
+# systemctl  enable  bluetooth
+# pacman  -S  bluedevil
+
+# nano /usr/lib/systemd/system/bluetooth.service
+[Unit]
+...
+After=iwd.service NetworkManager.service
+...
+
+打印机
+# pacman  -S  cups
+
+安装字体
+英文字体
+pacman -S  adobe-source-code-pro-fonts  noto-fonts
+pacman -S ttf-dejavu  ttf-liberation
+pacman  -S  ttf-droid ttf-hack ttf-font-awesome otf-font-awesome ttf-lato  ttf-linux-libertine ttf-opensans ttf-roboto ttf-ubuntu-font-family
+
+中文字体
+pacman -S noto-fonts-cjk
+pacman  -S wqy-microhei
+pacman -S ttf-hannom noto-fonts-extra noto-fonts-emoji  adobe-source-sans-fonts adobe-source-serif-fonts adobe-source-han-sans-cn-fonts adobe-source-han-sans-hk-fonts adobe-source-han-sans-tw-fonts adobe-source-han-serif-cn-fonts wqy-zenhei
+打开字体引擎
+vim /etc/profile.d/freetype2.sh
+--------------------------------------------
+# 取消注释最后一句
+export FREETYPE_PROPERTIES="truetype:interpreter-version=40"
+
+# pacman -S fcitx5-im fcitx5-chinese-addons
+# nano etc/environment
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+INPUT_METHOD=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus
+
+# systemctl enable sddm
+
+# 如果使用有线网卡
+/etc/systemd/network/20-wired.network
+[Match]
+Name=enp1s0
+或
+Name=enp*
+
+[Network]
+DHCP=yes
+
+# systemctl  enable  systemd-networkd
+# systemctl  start    systemd-networkd
+# systemctl  status  systemd-networkd
+# systemctl  --type=service
+
+# nano /etc/systemd/resolved.conf
+DNS=1.1.1.1  8.8.8.8
+FallbackDNS=8.8.4.4
+#DNSSEC=yes
+
+# systemctl  enable  systemd-resolved
+# systemctl  start  systemd-resolved
+# ln -rsf  /run/systemd/resolve/stub-resolv.conf  /etc/resolv.conf
+$ resolvectl  status
+
+# pacman  -S  linux-lts  linux-lts-headers
+# grub-mkconfig  -o  /boot/grub/grub.cfg
+重启
+# pacman  -R  linux
+# grub-mkconfig  -o  /boot/grub/grub.cfg
+
+# pacman  -S  gst-plugins-good
+
+if Pamac says "No Package Found", Reinstall: archlinux-appstream-data !
+# pacman -S archlinux-appstream-data
+
+$ systemd-analyze plot > ~/boot.svg
+
+
+# pacman -S tlp-rdw
+# systemctl mask systemd-rfkill.service
+# systemctl mask systemd-rfkill.socket
+# systemctl enable NetworkManager
+# systemctl start NetworkManager
+# systemctl enable NetworkManager-dispatcher.service
+# systemctl start NetworkManager-dispatcher.service
+
+$ yay  -S  howdy
+
+$ sudo nano  /etc/pam.d/system-local-login
+auth      sufficient  pam_unix.so    try_first_pass  likeauth  nullok
+auth      sufficient  pam_python.so  /lib/security/howdy/pam.py

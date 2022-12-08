@@ -1,0 +1,100 @@
+# opkg update
+# opkg list-upgradable | cut -f 1 -d ' ' | xargs opkg upgrade
+
+# opkg install luci-i18n-base-zh-cn
+
+# opkg install kmod-usb-storage
+
+# opkg install kmod-usb3
+# insmod xhci-hcd
+
+# opkg install usbutils  diffutils  fdisk
+
+# opkg install block-hotplug # 热插拔
+# opkg install block-extroot  # boot 支持
+
+# opkg install kmod-nls-utf8
+
+# opkg install block-mount kmod-fs-ext4 e2fsprogs parted
+# parted -s /dev/sda -- mklabel gpt mkpart extroot 2048s -2048s
+
+DEVICE="/dev/sda1"
+mkfs.ext4 -L extroot ${DEVICE}
+
+DEVICE="$(sed -n -e "/\s\/overlay\s.*$/s///p" /etc/mtab)"
+uci -q delete fstab.rwm
+uci set fstab.rwm="mount"
+uci set fstab.rwm.device="${DEVICE}"
+uci set fstab.rwm.target="/rwm"
+uci commit fstab
+
+eval $(block info ${DEVICE} | grep -o -e "UUID=\S*")
+uci -q delete fstab.overlay
+uci set fstab.overlay="mount"
+uci set fstab.overlay.uuid="${UUID}"
+uci set fstab.overlay.target="/overlay"
+uci commit fstab
+
+mount ${DEVICE} /mnt
+tar -C /overlay -cvf - . | tar -C /mnt -xf -
+reboot
+
+# opkg install zoneinfo-asia
+# cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+# opkg install nano-full
+
+# opkg install mariadb-server
+Configuring mariadb-server-base.
+2022-12-07 16:00:04 0 [Warning] Could not open mysql.plugin table: "Table 'mysql.plugin' doesn't exist". Some options may be missing from the help text
+service not enabled in /etc/config/mysqld
+Configuring mariadb-server.
+
+# opkg install mariadb-server-plugin-locales
+
+# opkg install pgsql-server
+
+Configuring pgsql-server.
+The files belonging to this database system will be owned by user "postgres".
+This user must also own the server process.
+
+The database cluster will be initialized with locales
+  COLLATE:  C
+  CTYPE:    C.UTF-8
+  MESSAGES: C
+  MONETARY: C
+  NUMERIC:  C
+  TIME:     C
+The default database encoding has accordingly been set to "UTF8".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+creating directory /var/postgresql/data ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... sh: locale: not found
+2022-12-07 15:39:21.516 UTC [4551] WARNING:  no usable system locales were found
+ok
+syncing data to disk ... ok
+
+initdb: warning: enabling "trust" authentication for local connections
+You can change this by editing pg_hba.conf or using the option -A, or
+--auth-local and --auth-host, the next time you run initdb.
+
+Success. You can now start the database server using:
+
+    /usr/bin/pg_ctl -D /var/postgresql/data -l logfile start
+
+通过路由器访问光猫
+网络-接口-添加新接口：
+名称: 任意
+协议: 静态地址
+设备： wan
+IPv4地址：和光猫IP地址相同网段的地址，例如：192.168.1.2
+子网掩码：255.255.255.0
